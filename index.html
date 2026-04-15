@@ -846,41 +846,66 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 // ================================================================
 // FIREBASE CONFIG
 // ================================================================
-const FB_URL = 'https://elite-9aaea-default-rtdb.firebaseio.com';
-const SECRET = 'cdcieza';
-const ADMIN_PIN = '2803';
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, get, set, update, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-async function fbGet(path) {
-  try {
-    const r = await fetch(`${FB_URL}/${path}.json`);
-    if (!r.ok) return null;
-    return await r.json();
-  } catch(e) { return null; }
-}
-async function fbSet(path, data) {
-  try {
-    const r = await fetch(`${FB_URL}/${path}.json`, {
-      method: 'PUT', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify(data)
-    });
-    return r.ok;
-  } catch(e) { return false; }
-}
-async function fbPatch(path, data) {
-  try {
-    const r = await fetch(`${FB_URL}/${path}.json`, {
-      method: 'PATCH', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify(data)
-    });
-    return r.ok;
-  } catch(e) { return false; }
-}
-async function fbDelete(path) {
-  try {
-    const r = await fetch(`${FB_URL}/${path}.json`, { method: 'DELETE' });
-    return r.ok;
-  } catch(e) { return false; }
-}
+  const firebaseConfig = {
+    apiKey: "AIzaSyCHqXIWYhAo2RJM6NzypNypNuvQsLGDALU",
+    authDomain: "elite-9aaea.firebaseapp.com",
+    databaseURL: "https://elite-9aaea-default-rtdb.firebaseio.com",
+    projectId: "elite-9aaea",
+    storageBucket: "elite-9aaea.firebasestorage.app",
+    messagingSenderId: "862460493027",
+    appId: "1:862460493027:web:835b5165ef5d1c668559d6"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  window.SECRET = 'cdcieza';
+  window.ADMIN_PIN = '2803';
+
+  window.fbGet = async function(path) {
+    try {
+      const snapshot = await get(ref(db, path));
+      return snapshot.exists() ? snapshot.val() : null;
+    } catch(e) {
+      console.error("FB GET ERROR:", e);
+      return null;
+    }
+  };
+
+  window.fbSet = async function(path, data) {
+    try {
+      await set(ref(db, path), data);
+      return true;
+    } catch(e) {
+      console.error("FB SET ERROR:", e);
+      return false;
+    }
+  };
+
+  window.fbPatch = async function(path, data) {
+    try {
+      await update(ref(db, path), data);
+      return true;
+    } catch(e) {
+      console.error("FB PATCH ERROR:", e);
+      return false;
+    }
+  };
+
+  window.fbDelete = async function(path) {
+    try {
+      await remove(ref(db, path));
+      return true;
+    } catch(e) {
+      console.error("FB DELETE ERROR:", e);
+      return false;
+    }
+  };
+</script>
 
 // ================================================================
 // SESSION
