@@ -1127,71 +1127,55 @@ async function finishOnboarding() {
 // ================================================================
 async function initSession() {
   if (!CU) { showScreen('auth'); return; }
-  if (!CUD) CUD = await fbGet(`users/${CU}`);
-  if (!CUD) { clearSession(); showScreen('auth'); return; }
-  if (!CUD.onboarded) { showScreen('onboarding'); goOb(1); return; }
-  await resetDailyIfNeeded();
-  updateStreak();
-  renderHeader();
-  renderMenuStatuses();
-  showScreen('app');
-  if (!CUD.welcomeShown) {
-    CUD.welcomeShown = true;
-    await fbPatch(`users/${CU}`, { welcomeShown: true });
-    setTimeout(() => document.getElementById('welcome-modal').classList.add('show'), 800);
+
+  try {
+    // 🔥 timeout de seguridad
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Timeout Firebase")), 5000)
+    );
+
+    if (!CUD) {
+      CUD = await Promise.race([
+        fbGet(`users/${CU}`),
+        timeout
+      ]);
+    }
+
+    if (!CUD) {
+      clearSession();
+      showScreen('auth');
+      return;
+    }
+
+    if (!CUD.onboarded) {
+      showScreen('onboarding');
+      goOb(1);
+      return;
+    }
+
+    await resetDailyIfNeeded();
+    updateStreak();
+    renderHeader();
+    renderMenuStatuses();
+
+    showScreen('app');
+
+    if (!CUD.welcomeShown) {
+      CUD.welcomeShown = true;
+      await fbPatch(`users/${CU}`, { welcomeShown: true });
+      setTimeout(() =>
+        document.getElementById('welcome-modal').classList.add('show'), 800);
+    }
+
+    scheduleReminder();
+
+  } catch (e) {
+    console.error("INIT ERROR:", e);
+
+    // 🔥 SALIDA SEGURA (CLAVE)
+    clearSession();
+    showScreen('auth');
   }
-  scheduleReminder();
-}
-
-async function resetDailyIfNeeded() {
-  const t = today();
-  if (CUD.lastReset !== t) {
-    CUD.lastReset = t;
-    CUD.daily = { sleep:0, fatigue:0, gym:false, food5:false, mealPlanDone:false, hydra:false, log:false };
-    if (!CUD.waterLog) CUD.waterLog = {};
-    CUD.waterLog[t] = 0;
-    if (!CUD.foodLog) CUD.foodLog = {};
-    CUD.foodLog[t] = [];
-    await fbPatch(`users/${CU}`, { lastReset:t, daily:CUD.daily, waterLog:CUD.waterLog });
-  }
-}
-
-function updateStreak() {
-  const t = today();
-  const s = CUD.streak || { count:0, lastDate:'' };
-  const yest = new Date(); yest.setDate(yest.getDate()-1);
-  const yd = `${yest.getFullYear()}-${yest.getMonth()+1}-${yest.getDate()}`;
-  if (s.lastDate === yd) s.count++;
-  else if (s.lastDate !== t) s.count = 1;
-  s.lastDate = t;
-  CUD.streak = s;
-  fbPatch(`users/${CU}`, { streak: s });
-}
-
-const POS_MAP={portero:'POR','defensa-central':'DEF',lateral:'LAT',mediocentro:'MED',extremo:'EXT',delantero:'DEL'};
-
-function renderHeader() {
-  const p = CUD.profile || {};
-  document.getElementById('hdr-name').textContent = `${(p.nombre||'').toUpperCase()} ${(p.apellidos||'').toUpperCase()}`;
-  document.getElementById('hdr-pos').textContent = POS_MAP[p.posicion]||'MED';
-  document.getElementById('hdr-edad').textContent = p.edad||'-';
-  document.getElementById('hdr-peso').textContent = p.peso||'-';
-  document.getElementById('hdr-equipo').textContent = (p.equipo||'EQUIPO').substring(0,6).toUpperCase();
-  document.getElementById('streak-n').textContent = (CUD.streak||{}).count||0;
-}
-
-function renderMenuStatuses() {
-  const d = CUD.daily || {};
-  const m = (key, done) => {
-    const el = document.getElementById('ms-'+key);
-    if (!el) return;
-    el.textContent = done ? 'COMPLETO' : 'PENDIENTE';
-    el.className = 'mc-status ' + (done ? 'done' : 'pend');
-  };
-  m('gym', d.gym);
-  m('food', d.food5 || d.mealPlanDone);
-  m('log', d.log);
-  m('dash', d.gym && (d.food5||d.mealPlanDone) && d.hydra && d.log);
 }
 
 // ================================================================
